@@ -1,0 +1,5 @@
+# Downloaded servers, worlds, and runtime configuration.
+/game-server-platform/
+
+# Local build and test artifacts.
+/*.exe
