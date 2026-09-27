@@ -1,2 +1,47 @@
-check connection from new laptop
-I’m taking a break from this project. There’s a lot of news. The main points: I have a new laptop (which is why I haven’t made any commits for a while), and I’m currently getting used to it—plus I need to install the OS and all the software required for my studies, and I’m also dealing with the introductory session. And the biggest news of all: I’m moving to another city. So, there won’t be any updates for a while. I tried to get some coding done while setting up the laptop and preparing for the move, but nothing came of it. That was to be expected, really. See you soon.
+# GAME-SERVICE-PLATFORM
+
+Platform for locally turning the game-server on 
+
+## CURRENT STATUS
+
+Early development
+
+Implemented so far(only for minectraft):
+- Java existecne check
+- Java version detection
+- User enters the version he needs and the server.jar (minecraft-server-file) downloads localy
+- Program turns the server on, files of the server are created, user must agree Minecraft acception (eula.txt). Than the program turns the server on again
+
+Planned:
+- Make backups logic for minecraft-server
+- Realise using backups 
+
+- Maybe add some more features to minecraft-server, maybe create server-logic to some more games
+
+## REQUIREMENTS
+
+- Go 1.25+
+- Java 21+
+
+## Run 
+
+Clone repository:
+```powerShell
+git clone git@github.com:daniilchuits/game-server-platform.git
+cd game-server-platform
+```
+
+Then run this code:
+```powerShell
+go run .
+```
+
+## TESTS
+
+Run unit tests:
+```powerShell
+go test ./...
+```
+
+---
+Work in progress
