@@ -50,7 +50,7 @@ func TestStartupDecisions(t *testing.T) {
 			downloads := &fakeDownloads{}
 			app := usecases.StartServer{
 				Console: cli.New(bufio.NewReader(strings.NewReader(test.input)), &output),
-				Java:    runtime, Downloads: downloads, Files: files, BaseDirectory: root,
+				Java:    runtime, Downloads: downloads, ServerFiles: files, BaseDirectory: root,
 			}
 			err := app.Run(context.Background())
 			if test.wantError != "" {
@@ -107,7 +107,7 @@ func TestDownloadErrorStopsStartup(t *testing.T) {
 	app := usecases.StartServer{
 		Console: cli.New(bufio.NewReader(strings.NewReader("1.20.4\nyes\n")), &output),
 		Java:    runtime, Downloads: &fakeDownloads{downloadError: failure},
-		Files: storage.ServerFiles{}, BaseDirectory: t.TempDir(),
+		ServerFiles: storage.ServerFiles{}, BaseDirectory: t.TempDir(),
 	}
 	if err := app.Run(context.Background()); !errors.Is(err, failure) {
 		t.Fatalf("expected download error, got %v", err)

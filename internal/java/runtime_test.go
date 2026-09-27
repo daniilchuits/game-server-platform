@@ -30,7 +30,9 @@ func TestMain(m *testing.M) {
 		if os.Getenv("GSP_TEST_JAVA_PROCESS") == "failure" {
 			os.Exit(4)
 		}
+
 		go func() { time.Sleep(10 * time.Second); os.Exit(5) }()
+
 		directory, _ := os.Getwd()
 		fmt.Fprintln(os.Stdout, "directory="+directory)
 		fmt.Fprintln(os.Stderr, "server diagnostics")
@@ -42,6 +44,7 @@ func TestMain(m *testing.M) {
 				os.Exit(0)
 			}
 		}
+		// Did final check of scanner.Err, but no need in that check here
 		os.Exit(6)
 	}
 	os.Exit(m.Run())

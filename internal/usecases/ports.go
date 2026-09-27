@@ -26,6 +26,7 @@ type Downloads interface {
 
 type ServerFiles interface {
 	CreateDirectory(directory string) error
+	CreateBackups(directory string) error
 	EULAAccepted(directory string) (bool, error)
 	AcceptEULA(directory string) error
 	ConfigureOffline(directory string) error

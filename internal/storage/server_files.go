@@ -3,20 +3,24 @@ package storage
 
 import (
 	"fmt"
+	"game-server-platform/internal/domain"
 	"os"
 	"path/filepath"
 )
 
 type ServerFiles struct{}
 
-// Create backups/
-func (ServerFiles) CreateBackups() error {
-
-}
-
 func (ServerFiles) CreateDirectory(directory string) error {
 	if err := os.MkdirAll(directory, 0755); err != nil {
 		return fmt.Errorf("create server directory: %w", err)
+	}
+	return nil
+}
+
+// Create backups/
+func (ServerFiles) CreateBackups(directory string) error {
+	if err := os.MkdirAll(filepath.Join(directory, domain.Backups), 0755); err != nil {
+		return fmt.Errorf("create 'backups' folder: %w", err)
 	}
 	return nil
 }

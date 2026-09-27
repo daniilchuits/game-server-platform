@@ -19,11 +19,13 @@ func main() {
 	defer stop()
 
 	input := bufio.NewReader(os.Stdin)
+
+	// do incapsulation in usecase
 	app := usecases.StartServer{
 		Console:       cli.New(input, os.Stdout),
 		Java:          java.New(input, os.Stdout, os.Stderr),
 		Downloads:     mojang.New(),
-		Files:         storage.ServerFiles{},
+		ServerFiles:   storage.ServerFiles{},
 		BaseDirectory: "game-server-platform",
 	}
 	if err := app.Run(ctx); err != nil {

@@ -13,7 +13,7 @@ type StartServer struct {
 	Console       Console
 	Java          JavaRuntime
 	Downloads     Downloads
-	Files         ServerFiles
+	ServerFiles   ServerFiles
 	BaseDirectory string
 }
 
@@ -38,7 +38,7 @@ func (app StartServer) Run(ctx context.Context) error {
 		return err
 	}
 	directory := filepath.Join(app.BaseDirectory, "minecraft", version)
-	if err := app.Files.CreateDirectory(directory); err != nil {
+	if err := app.ServerFiles.CreateDirectory(directory); err != nil {
 		return err
 	}
 	// base dir == app.BaseDirectory+"minecraft"+"backups"
@@ -48,7 +48,11 @@ func (app StartServer) Run(ctx context.Context) error {
 		return err
 	}
 
-	agreed, err := app.Files.EULAAccepted(directory)
+	if err := app.ServerFiles.CreateBackups(directory); err != nil {
+		return err
+	}
+
+	agreed, err := app.ServerFiles.EULAAccepted(directory)
 	if err != nil {
 		return err
 	}
@@ -61,12 +65,12 @@ func (app StartServer) Run(ctx context.Context) error {
 			app.Console.Message("EULA was not accepted; server was not started.")
 			return nil
 		}
-		if err := app.Files.AcceptEULA(directory); err != nil {
+		if err := app.ServerFiles.AcceptEULA(directory); err != nil {
 			return err
 		}
 	}
 
-	if err := app.Files.ConfigureOffline(directory); err != nil {
+	if err := app.ServerFiles.ConfigureOffline(directory); err != nil {
 		return err
 	}
 	app.Console.Message("Offline mode is enabled: reachable clients can join using arbitrary player names.")
