@@ -3,6 +3,8 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"errors"
+	"io"
 	"strings"
 	"testing"
 )
@@ -19,12 +21,57 @@ func TestPromptFlowPreservesServerCommands(t *testing.T) {
 	if err != nil || !agreed {
 		t.Fatalf("accepted = %v, error = %v", agreed, err)
 	}
-	command, err := input.ReadString('\n')
-	if err != nil || command != "stop\n" {
+	command, err := console.ReadCommand()
+	if err != nil || command != "stop" {
 		t.Fatalf("buffered command lost: %q, %v", command, err)
 	}
 	if !strings.Contains(output.String(), "server/eula.txt") || !strings.Contains(output.String(), "https://aka.ms/MinecraftEULA") {
 		t.Fatalf("missing EULA information: %s", &output)
+	}
+}
+
+func TestCommandParsing(t *testing.T) {
+	for _, test := range []struct {
+		line    string
+		kind    CommandKind
+		message string
+	}{
+		{"", EmptyCommand, ""},
+		{" \t ", EmptyCommand, ""},
+		{"backup", BackupCommand, ""},
+		{"  backup\tbefore  пещера 🌍  ", BackupCommand, "before  пещера 🌍"},
+		{"backup\u2003Unicode separator", BackupCommand, "Unicode separator"},
+		{"backups", ServerCommand, ""},
+		{"backupworld", ServerCommand, ""},
+		{"  say hello  ", ServerCommand, ""},
+		{"/backup", ServerCommand, ""},
+	} {
+		t.Run(test.line, func(t *testing.T) {
+			command := ParseCommand(test.line)
+			if command.Kind != test.kind || command.Message != test.message {
+				t.Fatalf("command = %+v", command)
+			}
+			if command.Kind == ServerCommand && command.Raw != test.line {
+				t.Fatal("original command was changed")
+			}
+		})
+	}
+}
+
+func TestCommandScannerReportsEOFAndOversizedInput(t *testing.T) {
+	console := New(bufio.NewReader(strings.NewReader("  list  \nstop")), io.Discard)
+	for _, want := range []string{"  list  ", "stop"} {
+		got, err := console.ReadCommand()
+		if err != nil || got != want {
+			t.Fatalf("command = %q, %v", got, err)
+		}
+	}
+	if _, err := console.ReadCommand(); !errors.Is(err, io.EOF) {
+		t.Fatalf("EOF = %v", err)
+	}
+	console = New(bufio.NewReader(strings.NewReader(strings.Repeat("x", 70*1024))), io.Discard)
+	if _, err := console.ReadCommand(); err == nil || errors.Is(err, io.EOF) {
+		t.Fatalf("scanner error = %v", err)
 	}
 }
 

@@ -3,9 +3,11 @@ package storage
 
 import (
 	"fmt"
-	"game-server-platform/internal/domain"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"game-server-platform/internal/domain"
 )
 
 type ServerFiles struct{}
@@ -15,6 +17,32 @@ func (ServerFiles) CreateDirectory(directory string) error {
 		return fmt.Errorf("create server directory: %w", err)
 	}
 	return nil
+}
+
+func (ServerFiles) WorldDirectory(directory string) (string, error) {
+	lines, err := readProperties(filepath.Join(directory, "server.properties"))
+	if err != nil {
+		return "", err
+	}
+	world := "world"
+	for _, line := range lines {
+		key, value := property(line)
+		if key == "level-name" && strings.TrimSpace(value) != "" {
+			world, err = decodePropertyValue(value)
+			if err != nil {
+				return "", fmt.Errorf("decode level-name: %w", err)
+			}
+		}
+	}
+	clean := filepath.Clean(world)
+	if clean == "." || !filepath.IsLocal(clean) {
+		return "", fmt.Errorf("invalid level-name %q: world must be inside the server directory", world)
+	}
+	first, _, _ := strings.Cut(clean, string(os.PathSeparator))
+	if strings.EqualFold(first, domain.Backups) {
+		return "", fmt.Errorf("invalid level-name %q: world cannot be inside backups", world)
+	}
+	return filepath.Join(directory, clean), nil
 }
 
 // Create backups/

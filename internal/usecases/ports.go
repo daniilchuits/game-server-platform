@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"time"
 
 	"game-server-platform/internal/domain"
 )
@@ -19,6 +20,9 @@ type JavaRuntime interface {
 	Start(ctx context.Context, installation domain.JavaInstallation, directory string) error
 }
 
+type ServerProcess = domain.ServerProcess
+type ProcessLauncher = domain.ProcessLauncher
+
 type Downloads interface {
 	Resolve(ctx context.Context, version string) (domain.ServerDownload, error)
 	EnsureJar(ctx context.Context, download domain.ServerDownload, destination string) error
@@ -30,4 +34,14 @@ type ServerFiles interface {
 	EULAAccepted(directory string) (bool, error)
 	AcceptEULA(directory string) error
 	ConfigureOffline(directory string) error
+}
+
+type BackupStore interface {
+	Prepare(ctx context.Context, serverDirectory, version string, now time.Time) (domain.BackupPlan, error)
+	Create(ctx context.Context, plan domain.BackupPlan, message string) error
+}
+
+type CommandConsole interface {
+	Console
+	ReadCommand() (string, error)
 }

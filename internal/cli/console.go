@@ -7,13 +7,16 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"game-server-platform/internal/domain"
 )
 
 type Console struct {
-	input  *bufio.Reader
-	output io.Writer
+	input    *bufio.Reader
+	commands *bufio.Scanner
+	output   io.Writer
+	writeMu  sync.Mutex
 }
 
 func New(input *bufio.Reader, output io.Writer) *Console {
@@ -47,7 +50,24 @@ func (console *Console) ConfirmEULA(path string) (bool, error) {
 }
 
 func (console *Console) Message(message string) {
+	console.writeMu.Lock()
+	defer console.writeMu.Unlock()
 	fmt.Fprintln(console.output, message)
+}
+
+func (console *Console) ReadCommand() (string, error) {
+	if console.commands == nil {
+		// The scanner consumes the same reader used by the startup prompts. No
+		// second reader is created, so buffered terminal input is preserved.
+		console.commands = bufio.NewScanner(console.input)
+	}
+	if !console.commands.Scan() {
+		if err := console.commands.Err(); err != nil {
+			return "", fmt.Errorf("read server command: %w", err)
+		}
+		return "", io.EOF
+	}
+	return console.commands.Text(), nil
 }
 
 func (console *Console) ask(prompt string) (string, error) {

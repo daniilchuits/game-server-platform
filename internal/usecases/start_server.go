@@ -10,10 +10,13 @@ import (
 )
 
 type StartServer struct {
-	Console       Console
+	Console       CommandConsole
 	Java          JavaRuntime
 	Downloads     Downloads
 	ServerFiles   ServerFiles
+	Process       ProcessLauncher
+	Backups       BackupStore
+	Clock         Clock
 	BaseDirectory string
 }
 
@@ -41,14 +44,9 @@ func (app StartServer) Run(ctx context.Context) error {
 	if err := app.ServerFiles.CreateDirectory(directory); err != nil {
 		return err
 	}
-	// base dir == app.BaseDirectory+"minecraft"+"backups"
 	jarPath := filepath.Join(directory, "server.jar")
 	app.Console.Message("Preparing server jar: " + jarPath)
 	if err := app.Downloads.EnsureJar(ctx, download, jarPath); err != nil {
-		return err
-	}
-
-	if err := app.ServerFiles.CreateBackups(directory); err != nil {
 		return err
 	}
 
@@ -76,5 +74,12 @@ func (app StartServer) Run(ctx context.Context) error {
 	app.Console.Message("Offline mode is enabled: reachable clients can join using arbitrary player names.")
 	app.Console.Message("LAN players can connect to this computer's local IP (default port 25565).")
 	app.Console.Message("Starting Minecraft " + version + ". Type stop and press Enter to save and shut down.")
-	return app.Java.Start(ctx, installation, directory)
+	if app.Process == nil || app.Backups == nil {
+		return app.Java.Start(ctx, installation, directory)
+	}
+	process, err := app.Process.Launch(ctx, installation, directory)
+	if err != nil {
+		return err
+	}
+	return RunSession(ctx, Session{Console: app.Console, Process: app.Process, Installation: installation, Directory: directory, Version: version, Backups: app.Backups, Clock: app.Clock}, process)
 }

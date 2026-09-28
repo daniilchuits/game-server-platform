@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -23,7 +24,7 @@ func TestMain(m *testing.M) {
 		}
 		fmt.Fprintln(os.Stderr, "openjdk version \"17.0.12\"")
 		os.Exit(0)
-	case "server", "failure":
+	case "server", "failure", "noisy":
 		if strings.Join(os.Args[1:], " ") != "-jar server.jar nogui" {
 			os.Exit(3)
 		}
@@ -36,6 +37,12 @@ func TestMain(m *testing.M) {
 		directory, _ := os.Getwd()
 		fmt.Fprintln(os.Stdout, "directory="+directory)
 		fmt.Fprintln(os.Stderr, "server diagnostics")
+		if os.Getenv("GSP_TEST_JAVA_PROCESS") == "noisy" {
+			fmt.Fprintln(os.Stdout, strings.Repeat("x", 100*1024))
+			for i := 0; i < 200; i++ {
+				fmt.Fprintf(os.Stderr, "diagnostic %d\n", i)
+			}
+		}
 		fmt.Fprintln(os.Stdout, "ready")
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
@@ -48,6 +55,61 @@ func TestMain(m *testing.M) {
 		os.Exit(6)
 	}
 	os.Exit(m.Run())
+}
+
+func TestLaunchedProcessDrainsOutputBeforeAllWaitersReturn(t *testing.T) {
+	t.Setenv("GSP_TEST_JAVA_PROCESS", "noisy")
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output, diagnostics bytes.Buffer
+	runtime := New(bufio.NewReader(strings.NewReader("")), &output, &diagnostics)
+	process, err := runtime.Launch(context.Background(), domain.JavaInstallation{Path: executable}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { process.Send("stop"); process.Wait() })
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := process.WaitFor(ctx, exact("ready"), "ready"); err != nil {
+		t.Fatal(err)
+	}
+	results := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		go func() { results <- process.Wait() }()
+	}
+	if err := process.Send("stop"); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 8; i++ {
+		select {
+		case err := <-results:
+			if err != nil {
+				t.Fatal(err)
+			}
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		}
+	}
+	if !strings.Contains(output.String(), strings.Repeat("x", 100*1024)+"\n") || !strings.HasSuffix(output.String(), "world saved\n") {
+		t.Fatal("stdout was truncated before process completion")
+	}
+	if !strings.Contains(diagnostics.String(), "diagnostic 199\n") {
+		t.Fatal("stderr was truncated")
+	}
+}
+
+func TestLaunchReportsMissingExecutableAndCancelledContext(t *testing.T) {
+	runtime := New(bufio.NewReader(strings.NewReader("")), io.Discard, io.Discard)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := runtime.Launch(ctx, domain.JavaInstallation{Path: "java"}, t.TempDir()); err != context.Canceled {
+		t.Fatalf("cancelled launch = %v", err)
+	}
+	if _, err := runtime.Launch(context.Background(), domain.JavaInstallation{Path: t.TempDir() + "/missing-java"}, t.TempDir()); err == nil {
+		t.Fatal("missing executable accepted")
+	}
 }
 
 func TestRealVersionCommandReadsStderr(t *testing.T) {
@@ -97,7 +159,10 @@ func TestServerCancellationSendsStop(t *testing.T) {
 	defer cancel()
 	output := &readyWriter{cancel: cancel}
 	var diagnostics bytes.Buffer
-	runtime := New(bufio.NewReader(strings.NewReader("")), output, &diagnostics)
+	input, inputWriter := io.Pipe()
+	defer input.Close()
+	defer inputWriter.Close()
+	runtime := New(bufio.NewReader(input), output, &diagnostics)
 	if err := runtime.Start(ctx, domain.JavaInstallation{Path: executable}, t.TempDir()); err != nil {
 		t.Fatal(err)
 	}
