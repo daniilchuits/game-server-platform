@@ -21,8 +21,9 @@ type Session struct {
 	Backups      BackupStore
 	Clock        Clock
 	// WaitTimeout is per operation. Zero uses the production five-minute limit.
-	WaitTimeout time.Duration
-	progress    func(domain.SessionState)
+	WaitTimeout   time.Duration
+	progress      func(domain.SessionState)
+	BackupsReader BackupsReader
 }
 
 func (session Session) timeout() time.Duration {
@@ -118,6 +119,29 @@ func RunSession(ctx context.Context, session Session, process ServerProcess) err
 				current := process
 				go func() { operations <- CreateBackup(ctx, session, current, command.Message) }()
 				continue
+			} else if command.Kind == cli.LogsCommand {
+				go func() {
+
+					bLogger := newBackupsLogger(
+						session.BackupsReader,
+						session.Console,
+						session.Directory,
+					)
+
+					if err := bLogger.logBackups(); err != nil {
+						session.Console.Message(fmt.Sprintf(
+							"Error logging backups: %s\n",
+							err.Error(),
+						))
+					}
+
+					// start in storage/read_backups.go
+
+					// create read_backups in `storage/read_backups.go`
+					// hash backups in `domain/hash_backups.go`
+					// create usecase to log the list of backups in `usecases/read_backups.go`
+					// use that features in this file
+				}()
 			}
 			if err := process.Send(command.Raw); err != nil {
 				cancel()
@@ -160,7 +184,7 @@ func RunSession(ctx context.Context, session Session, process ServerProcess) err
 			}
 			state = domain.Running
 			processDone = process.Done()
-			session.Console.Message("Server ready. Type backup [message] or a Minecraft command.")
+			session.Console.Message("Server ready.")
 		}
 	}
 }
