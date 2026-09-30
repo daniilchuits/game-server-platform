@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"game-server-platform/internal/domain"
+	"game-server-platform/internal/storage"
 )
 
 type StartServer struct {
@@ -81,5 +82,15 @@ func (app StartServer) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return RunSession(ctx, Session{Console: app.Console, Process: app.Process, Installation: installation, Directory: directory, Version: version, Backups: app.Backups, Clock: app.Clock}, process)
+	return RunSession(ctx,
+		Session{
+			Console:       app.Console,
+			Process:       app.Process,
+			Installation:  installation,
+			Directory:     directory,
+			Version:       version,
+			Backups:       app.Backups,
+			Clock:         app.Clock,
+			BackupsReader: storage.BackupsReader{},
+		}, process)
 }
