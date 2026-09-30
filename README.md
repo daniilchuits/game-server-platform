@@ -35,6 +35,8 @@ Then run this code:
 go run .
 ```
 
+After running the program you need to type game (now only Minecraft is availuble) and a version on which server will exists.
+
 While the server is running, type `backup` to create a world snapshot or
 `backup <message>` to include a note. The server announces a ten-second
 countdown, flushes the world, stops while the files are copied, and restarts
@@ -45,6 +47,8 @@ Each snapshot contains `world/`, `backup.json`, and an optional
 `backup_message.txt`. The world comes from `level-name` in `server.properties`.
 Commands are rejected while a backup is in progress. Ctrl+C or terminal EOF
 requests graceful shutdown and prevents automatic restart.
+
+While the server is running you can also type 'logs' to get a list of backups' names + optional backup's message + hash of the backup. This hash is used to restore backup's data. Message is here to identify backup you need.
 
 ## TESTS
 
