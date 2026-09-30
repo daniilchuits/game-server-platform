@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"game-server-platform/internal/domain"
+	"game-server-platform/internal/storage"
 )
 
 // These interfaces describe the services the startup flow needs.
@@ -45,3 +46,9 @@ type CommandConsole interface {
 	Console
 	ReadCommand() (string, error)
 }
+
+type BackupsReader interface {
+	ReadBackups(currDir string) ([]storage.BackupData, error)
+}
+
+// start in storage/read_backups.go

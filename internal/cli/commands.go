@@ -11,6 +11,7 @@ const (
 	EmptyCommand CommandKind = iota
 	ServerCommand
 	BackupCommand
+	LogsCommand
 )
 
 type Command struct {
@@ -28,8 +29,13 @@ func ParseCommand(line string) Command {
 	if end := strings.IndexFunc(trimmed, unicode.IsSpace); end >= 0 {
 		word, message = trimmed[:end], strings.TrimSpace(trimmed[end:])
 	}
-	if word == "backup" {
+	switch word {
+	case "backup":
 		return Command{Kind: BackupCommand, Message: message}
+	case "logs": // getting "logs", but nothing is happening
+		return Command{Kind: LogsCommand, Message: message}
 	}
 	return Command{Kind: ServerCommand, Raw: line}
 }
+
+// start in storage/read_backups.go
