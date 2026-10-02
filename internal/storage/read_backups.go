@@ -2,18 +2,15 @@ package storage
 
 import (
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"game-server-platform/internal/domain"
 )
 
 type BackupsReader struct {
 	BackupsPath string
-}
-
-type BackupData struct {
-	FileName string
-	Message  string
 }
 
 const (
@@ -21,45 +18,37 @@ const (
 	backupMessage = "backup_message.txt"
 )
 
-func (b BackupsReader) ReadBackups(currDir string) ([]BackupData, error) {
-
+func (b BackupsReader) ReadBackups(currDir string) ([]domain.BackupData, error) {
 	path := filepath.Join(currDir, b.BackupsPath, backups)
 	infoArr, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var backupsData []BackupData
+	var backupsData []domain.BackupData
 	for i := len(infoArr) - 1; i >= 0; i-- {
-
+		if !infoArr[i].IsDir() || strings.HasPrefix(infoArr[i].Name(), ".") {
+			continue
+		}
 		fullPath := filepath.Join(path, infoArr[i].Name(), backupMessage)
 		message, err := readBackupMessage(fullPath)
-
 		if err != nil {
 			return nil, err
 		}
-		backupsData = append(backupsData, BackupData{
+		backupsData = append(backupsData, domain.BackupData{
 			FileName: infoArr[i].Name(),
 			Message:  message,
 		})
 	}
 	return backupsData, nil
-	// get filenames in array and internal of `backups/<TIMESTAMP>/backup_message.txt`
 }
 
 func readBackupMessage(backupPath string) (string, error) {
-
-	info, err := os.OpenFile(backupPath, os.O_RDONLY, 0644)
+	b, err := os.ReadFile(backupPath)
 	if err != nil {
-
 		if errors.Is(err, os.ErrNotExist) {
 			return "", nil
 		}
-		return "", err
-	}
-
-	b, err := io.ReadAll(info)
-	if err != nil {
 		return "", err
 	}
 	return string(b), nil

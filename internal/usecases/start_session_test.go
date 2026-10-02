@@ -45,7 +45,8 @@ func TestStartupUsesProcessSessionAndRetainsOwnershipOnCancellation(t *testing.T
 			app := StartServer{
 				Console: console, Java: setupJava{}, Downloads: setupDownloads{},
 				ServerFiles: storage.ServerFiles{}, BaseDirectory: t.TempDir(),
-				Process: launcher, Backups: controlledStore{}, Clock: controlledClock{},
+				Process: launcher, Backups: controlledStore{}, BackupsReader: controlledBackupsReader{},
+				Restorer: controlledRestorer{}, Clock: controlledClock{},
 			}
 			done := make(chan error, 1)
 			go func() { done <- app.Run(ctx) }()

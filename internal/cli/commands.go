@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"encoding/hex"
 	"strings"
-	"unicode"
 )
+
+const BackupUsage = "Usage: backup create [message] | backup use <hash>"
 
 type CommandKind int
 
@@ -12,6 +14,8 @@ const (
 	ServerCommand
 	BackupCommand
 	LogsCommand
+	UseBackupCommand
+	InvalidCommand
 )
 
 type Command struct {
@@ -21,21 +25,47 @@ type Command struct {
 }
 
 func ParseCommand(line string) Command {
-	trimmed := strings.TrimSpace(line)
-	if trimmed == "" {
+	fullCommand := strings.TrimSpace(line)
+	parts := strings.Fields(fullCommand)
+	if len(parts) == 0 {
 		return Command{Kind: EmptyCommand}
 	}
-	word, message := trimmed, ""
-	if end := strings.IndexFunc(trimmed, unicode.IsSpace); end >= 0 {
-		word, message = trimmed[:end], strings.TrimSpace(trimmed[end:])
-	}
-	switch word {
+
+	switch parts[0] {
 	case "backup":
-		return Command{Kind: BackupCommand, Message: message}
-	case "logs": // getting "logs", but nothing is happening
-		return Command{Kind: LogsCommand, Message: message}
+		if len(parts) < 2 {
+			return invalidBackupCommand()
+		}
+		arguments := strings.TrimSpace(strings.TrimPrefix(fullCommand, parts[0]))
+		subcommand := parts[1]
+		remaining := strings.TrimSpace(strings.TrimPrefix(arguments, subcommand))
+		switch subcommand {
+		case "create":
+			return Command{Kind: BackupCommand, Message: remaining}
+		case "use":
+			if len(parts) != 3 || !validSHA256(parts[2]) {
+				return invalidBackupCommand()
+			}
+			return Command{Kind: UseBackupCommand, Message: strings.ToLower(parts[2])}
+		}
+		return invalidBackupCommand()
+	case "logs":
+		if len(parts) > 1 {
+			return Command{Kind: EmptyCommand}
+		}
+		return Command{Kind: LogsCommand}
 	}
 	return Command{Kind: ServerCommand, Raw: line}
 }
 
-// start in storage/read_backups.go
+func invalidBackupCommand() Command {
+	return Command{Kind: InvalidCommand, Message: BackupUsage}
+}
+
+func validSHA256(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
+}

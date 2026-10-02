@@ -98,11 +98,15 @@ type controlledLauncher struct {
 	next     *controlledProcess
 	err      error
 	launched chan struct{}
+	launch   func() (ServerProcess, error)
 }
 
 func (launcher *controlledLauncher) Launch(context.Context, domain.JavaInstallation, string) (ServerProcess, error) {
 	if launcher.launched != nil {
 		launcher.launched <- struct{}{}
+	}
+	if launcher.launch != nil {
+		return launcher.launch()
 	}
 	if launcher.err != nil {
 		return nil, launcher.err
@@ -395,7 +399,7 @@ func TestSessionRoutesCommandsAndAdoptsRestartedProcess(t *testing.T) {
 	waitMessage(t, console, "Server ready.")
 	console.input <- commandRead{line: "  say hello  "}
 	waitCommand(t, initial, "  say hello  ")
-	console.input <- commandRead{line: "backup before  пещера 🌍"}
+	console.input <- commandRead{line: "backup create before  пещера 🌍"}
 	waitMessage(t, console, "Backup created:")
 	waitMessage(t, console, "Server ready.")
 	console.input <- commandRead{line: "list"}
@@ -422,9 +426,9 @@ func TestSessionRejectsCommandsWhileBusyAndCancelsOnEOF(t *testing.T) {
 	session.Process.(*controlledLauncher).launched = launched
 	console, _, done := startSession(t, session, initial, restarted)
 	waitMessage(t, console, "Server ready.")
-	console.input <- commandRead{line: "backup"}
+	console.input <- commandRead{line: "backup create"}
 	receive(t, countdown)
-	console.input <- commandRead{line: "backup another"}
+	console.input <- commandRead{line: "backup create another"}
 	console.input <- commandRead{line: "say should be rejected"}
 	waitMessage(t, console, "command rejected")
 	waitMessage(t, console, "command rejected")
@@ -453,7 +457,7 @@ func TestSessionCancellationDuringCopySuppressesRestart(t *testing.T) {
 	session.Process.(*controlledLauncher).launched = launched
 	console, cancel, done := startSession(t, session, initial, restarted)
 	waitMessage(t, console, "Server ready.")
-	console.input <- commandRead{line: "backup"}
+	console.input <- commandRead{line: "backup create"}
 	receive(t, copying)
 	cancel()
 	if err := receive(t, done); err != nil {
@@ -504,7 +508,7 @@ func TestCancellationDuringRestartStopsNewProcess(t *testing.T) {
 	session.Process.(*controlledLauncher).launched = launched
 	console, cancel, done := startSession(t, session, initial, restarted)
 	waitMessage(t, console, "Server ready.")
-	console.input <- commandRead{line: "backup"}
+	console.input <- commandRead{line: "backup create"}
 	receive(t, launched)
 	cancel()
 	if err := receive(t, done); err != nil {

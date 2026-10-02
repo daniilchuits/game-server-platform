@@ -60,3 +60,30 @@ func TestBackupRejectsWindowsJunctions(t *testing.T) {
 		})
 	}
 }
+
+func TestRestoreRejectsWindowsJunctionInSnapshot(t *testing.T) {
+	root, backupName, target := restoreFixture(t, "world")
+	source := filepath.Join(root, "backups", backupName, "world")
+	if err := os.RemoveAll(source); err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "state.txt"), []byte("external"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }
+	command := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+		"New-Item -ItemType Junction -Path "+quote(source)+" -Target "+quote(outside)+" -ErrorAction Stop | Out-Null")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("create test junction: %v: %s", err, output)
+	}
+	t.Cleanup(func() {
+		if err := os.Remove(source); err != nil {
+			t.Errorf("remove junction: %v", err)
+		}
+	})
+	if _, err := (RestoreStore{}).PrepareRestore(context.Background(), root, "1.20.4", backupName); err == nil || !strings.Contains(err.Error(), "junction") {
+		t.Fatalf("accepted snapshot junction: %v", err)
+	}
+	assertWorldFile(t, target, "old")
+}

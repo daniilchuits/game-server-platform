@@ -19,6 +19,7 @@ type Session struct {
 	Directory    string
 	Version      string
 	Backups      BackupStore
+	Restorer     BackupRestorer
 	Clock        Clock
 	// WaitTimeout is per operation. Zero uses the production five-minute limit.
 	WaitTimeout   time.Duration
@@ -119,29 +120,30 @@ func RunSession(ctx context.Context, session Session, process ServerProcess) err
 				current := process
 				go func() { operations <- CreateBackup(ctx, session, current, command.Message) }()
 				continue
+			} else if command.Kind == cli.InvalidCommand {
+				session.Console.Message(command.Message)
+				continue
 			} else if command.Kind == cli.LogsCommand {
-				go func() {
+				bLogger := newBackupsLogger(
+					session.BackupsReader,
+					session.Console,
+					session.Directory,
+				)
 
-					bLogger := newBackupsLogger(
-						session.BackupsReader,
-						session.Console,
-						session.Directory,
-					)
-
-					if err := bLogger.logBackups(); err != nil {
-						session.Console.Message(fmt.Sprintf(
-							"Error logging backups: %s\n",
-							err.Error(),
-						))
-					}
-
-					// start in storage/read_backups.go
-
-					// create read_backups in `storage/read_backups.go`
-					// hash backups in `domain/hash_backups.go`
-					// create usecase to log the list of backups in `usecases/read_backups.go`
-					// use that features in this file
-				}()
+				if err := bLogger.logBackups(); err != nil {
+					session.Console.Message(fmt.Sprintf(
+						"Error logging backups: %s\n",
+						err.Error(),
+					))
+				}
+				continue
+			} else if command.Kind == cli.UseBackupCommand {
+				busy = true
+				state = domain.PreparingRestore
+				current := process
+				hash := command.Message
+				go func() { operations <- RestoreBackup(ctx, session, current, hash) }()
+				continue
 			}
 			if err := process.Send(command.Raw); err != nil {
 				cancel()
@@ -161,6 +163,9 @@ func RunSession(ctx context.Context, session Session, process ServerProcess) err
 			process = result.Process
 			if result.Path != "" {
 				session.Console.Message("Backup created: " + result.Path)
+			}
+			if result.Restored != "" {
+				session.Console.Message("Backup restored: " + result.Restored)
 			}
 			if result.Err != nil {
 				session.Console.Message("Operation failed: " + result.Err.Error())

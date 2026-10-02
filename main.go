@@ -28,6 +28,8 @@ func main() {
 		ServerFiles:   storage.ServerFiles{},
 		Process:       runtime,
 		Backups:       storage.BackupStore{},
+		BackupsReader: storage.BackupsReader{},
+		Restorer:      storage.RestoreStore{},
 		Clock:         usecases.RealClock{},
 		BaseDirectory: "game-server-platform",
 	}

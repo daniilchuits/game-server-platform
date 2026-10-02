@@ -31,6 +31,7 @@ func TestPromptFlowPreservesServerCommands(t *testing.T) {
 }
 
 func TestCommandParsing(t *testing.T) {
+	hash := strings.Repeat("ab", 32)
 	for _, test := range []struct {
 		line    string
 		kind    CommandKind
@@ -38,9 +39,14 @@ func TestCommandParsing(t *testing.T) {
 	}{
 		{"", EmptyCommand, ""},
 		{" \t ", EmptyCommand, ""},
-		{"backup", BackupCommand, ""},
-		{"  backup\tbefore  пещера 🌍  ", BackupCommand, "before  пещера 🌍"},
-		{"backup\u2003Unicode separator", BackupCommand, "Unicode separator"},
+		{"backup", InvalidCommand, BackupUsage},
+		{"backup create", BackupCommand, ""},
+		{"  backup\tcreate before  пещера 🌍  ", BackupCommand, "before  пещера 🌍"},
+		{"backup\u2003create Unicode separator", BackupCommand, "Unicode separator"},
+		{"backup use " + hash, UseBackupCommand, hash},
+		{"backup use missing", InvalidCommand, BackupUsage},
+		{"backup use " + hash + " extra", InvalidCommand, BackupUsage},
+		{"backup remove " + hash, InvalidCommand, BackupUsage},
 		{"backups", ServerCommand, ""},
 		{"backupworld", ServerCommand, ""},
 		{"  say hello  ", ServerCommand, ""},

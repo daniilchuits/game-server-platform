@@ -13,10 +13,11 @@ import (
 
 // BackupResult always retains ownership of the current process, even on failure.
 type BackupResult struct {
-	Process ServerProcess
-	Path    string
-	Err     error
-	Fatal   bool
+	Process  ServerProcess
+	Path     string
+	Restored string
+	Err      error
+	Fatal    bool
 }
 
 func (session Session) report(state domain.SessionState) {
@@ -61,6 +62,7 @@ func CreateBackup(ctx context.Context, session Session, process ServerProcess, m
 			return result
 		}
 	}
+
 	session.report(domain.Saving)
 	var alreadyOff atomic.Bool
 	matchOff := minecraft.Response(func(line string) bool {
@@ -79,6 +81,7 @@ func CreateBackup(ctx context.Context, session Session, process ServerProcess, m
 		result.Err = err
 		return result
 	}
+
 	session.report(domain.Stopping)
 	if err := process.Send("stop"); err != nil {
 		return recoverSaving(ctx, session, process, err, !alreadyOff.Load())

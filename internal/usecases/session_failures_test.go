@@ -53,9 +53,9 @@ func TestSavingRecoveryWaitsForAcknowledgement(t *testing.T) {
 	}
 	console, cancel, done := startSession(t, session, initial, restarted)
 	waitMessage(t, console, "Server ready.")
-	console.input <- commandRead{line: "backup"}
+	console.input <- commandRead{line: "backup create"}
 	waitCommand(t, initial, "save-on")
-	console.input <- commandRead{line: "backup second"}
+	console.input <- commandRead{line: "backup create second"}
 	waitMessage(t, console, "command rejected")
 	assertNotCompleted(t, done)
 	cancel()
@@ -84,9 +84,9 @@ func TestBusyCommandsAndEOFDuringSaveCopyAndRestart(t *testing.T) {
 			}
 			console, _, done := startSession(t, session, initial, restarted)
 			waitMessage(t, console, "Server ready.")
-			console.input <- commandRead{line: "backup"}
+			console.input <- commandRead{line: "backup create"}
 			waitMessage(t, console, "Server is "+string(stage)+".")
-			console.input <- commandRead{line: "backup again"}
+			console.input <- commandRead{line: "backup create again"}
 			console.input <- commandRead{line: "say must not reach Java"}
 			waitMessage(t, console, "command rejected")
 			waitMessage(t, console, "command rejected")
@@ -112,7 +112,7 @@ func TestSessionRestartTimeoutStopsNewProcessAndReportsSnapshot(t *testing.T) {
 	session.WaitTimeout = 20 * time.Millisecond
 	console, _, done := startSession(t, session, initial, restarted)
 	waitMessage(t, console, "Server ready.")
-	console.input <- commandRead{line: "backup"}
+	console.input <- commandRead{line: "backup create"}
 	waitMessage(t, console, "Backup created: snapshot")
 	err := receive(t, done)
 	if !errors.Is(err, context.DeadlineExceeded) {
