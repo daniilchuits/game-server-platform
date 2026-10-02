@@ -1,70 +1,137 @@
-# GAME-SERVICE-PLATFORM
+# Game Server Platform
 
-Platform for locally turning the game-server on 
+A Go CLI for setting up and running a local Minecraft server with safe world
+backup and restore operations.
 
-## CURRENT STATUS
+The project is in early development and currently supports Minecraft 1.20.4.
 
-Early development
+## Features
 
-Implemented so far(only for minectraft):
-- Java existecne check
-- Java version detection
-- User enters the version he needs and the server.jar (minecraft-server-file) downloads localy
-- The user accepts the EULA before the first launch; the CLI saves that acceptance and starts the server.
-- World backups with an optional message, a save-and-stop sequence, and automatic restart.
+- Checks that Java is installed and reports the minimum required version.
+- Downloads and verifies the Minecraft server JAR for the selected version.
+- Guides the user through Minecraft EULA acceptance.
+- Configures the server for offline/LAN play.
+- Forwards ordinary console commands directly to Minecraft.
+- Creates timestamped world backups with optional messages.
+- Lists backups with stable SHA-256 restore hashes.
+- Restores backups with a permanent safety snapshot and automatic rollback.
+- Rejects commands while a backup or restore operation owns the server.
+- Shuts down gracefully on Ctrl+C or terminal EOF.
 
-Planned:
-- Realise using backups 
-- Maybe add some more features to minecraft-server, maybe create server-logic to some more games
+## Requirements
 
-## REQUIREMENTS
+- The Go version declared in `go.mod`.
+- Java 17 or newer for Minecraft 1.20.4.
 
-- The Go version declared in `go.mod`
-- Java 17+ for Minecraft 1.20.4 (the program checks this before downloading)
+The application checks Java before downloading or starting Minecraft. If Java
+is missing or too old, it prints the minimum version that must be installed.
 
-## Run 
+## Run
 
-Clone repository:
-```powerShell
+Clone the repository:
+
+```powershell
 git clone git@github.com:daniilchuits/game-server-platform.git
 cd game-server-platform
 ```
 
-Then run this code:
-```powerShell
+Start the application:
+
+```powershell
 go run .
 ```
 
-After running the program you need to type game (now only Minecraft is availuble) and a version on which server will exists.
+Press Enter at the version prompt to use the supported default, `1.20.4`. On
+the first run, the application asks you to accept the Minecraft EULA before it
+starts the server.
 
-While the server is running, type `backup` to create a world snapshot or
-`backup <message>` to include a note. The server announces a ten-second
-countdown, flushes the world, stops while the files are copied, and restarts
-automatically. Completed snapshots are stored under
-`game-server-platform/minecraft/1.20.4/backups/<UTC timestamp>/`.
+```txt
+ [!WARNING]
+ The server uses `online-mode=false` for LAN play. Anyone who can reach the
+ server can connect using an arbitrary player name. Do not expose it directly
+ to the public internet.
+```
 
-Each snapshot contains `world/`, `backup.json`, and an optional
-`backup_message.txt`. The world comes from `level-name` in `server.properties`.
-Commands are rejected while a backup is in progress. Ctrl+C or terminal EOF
-requests graceful shutdown and prevents automatic restart.
+## Console commands
 
-While the server is running you can also type 'logs' to get a list of backups' names + optional backup's message + hash of the backup. This hash is used to restore backup's data. Message is here to identify backup you need.
+| Command | Description |
+| --- | --- |
+| `backup create` | Create a backup without a message. |
+| `backup create <message>` | Create a backup with a note that helps identify it. |
+| `logs` | List completed backups, their messages, and restore hashes. |
+| `backup use <hash>` | Restore the backup identified by the hash from `logs`. |
+| Any other command | Forward the original line to the Minecraft console. |
 
-## TESTS
+Invalid backup commands print:
 
-Run unit tests:
-```powerShell
+```text
+Usage: backup create [message] | backup use <hash>
+```
+
+### Creating a backup
+
+The application performs the following sequence:
+
+1. Validates the world and backup destination before interrupting gameplay.
+2. Announces the restart to players at 10 and 5 seconds.
+3. Disables automatic saving and waits for `save-all flush` confirmation.
+4. Stops Minecraft and waits for Java to exit.
+5. Copies the configured `level-name` world into a temporary snapshot.
+6. Publishes the completed snapshot atomically and restarts Minecraft.
+
+Backups are stored under:
+
+```text
+game-server-platform/minecraft/1.20.4/backups/<UTC timestamp>/
+```
+
+Each completed backup contains:
+
+```text
+<UTC timestamp>/
+├── world/
+├── backup.json
+└── backup_message.txt  # present only when a message was supplied
+```
+
+### Restoring a backup
+
+Run `logs`, copy the required backup's hash, and pass it to
+`backup use <hash>`. Before stopping Minecraft, the application validates the
+hash, snapshot metadata, Minecraft version, paths, files, symbolic links, and
+Windows junctions.
+
+After validation, the restore operation:
+
+1. Announces the restore and restart to connected players.
+2. Flushes and stops the running server.
+3. Creates a permanent timestamped safety backup of the current world.
+4. Copies the selected snapshot into an operation-owned staging directory.
+5. Swaps the staged world into the configured `level-name` location.
+6. Restarts Minecraft and waits until the server reports that it is ready.
+
+Completed snapshots are never modified during a restore. If copying or
+installation fails, the original world remains available and the application
+restarts it. If the restored server cannot become ready, the application rolls
+back to the original world and makes one automatic restart attempt. The safety
+backup is preserved even when restoration fails.
+
+## Tests
+
+Run the standard checks:
+
+```powershell
 go test ./...
 go vet ./...
 ```
 
-Tests cover Java availability and minimum version errors, terminal routing,
-save acknowledgements, process output and exit handling, cancellation, restart
-failures, snapshot contents, and unsafe paths (including Windows junctions).
-The ordinary suite uses temporary files and helper processes and needs no Java
-installation or Minecraft download.
+The standard suite covers Java detection, command routing, save
+acknowledgements, process ownership, cancellation, backup creation, safe
+restore transactions, rollback failures, path traversal, symbolic links, and
+Windows junctions. It uses temporary directories and helper processes, so it
+does not require Java or a Minecraft download.
 
-To run the optional real Minecraft check in PowerShell:
+To run the optional real Minecraft backup test in PowerShell:
 
 ```powershell
 $env:GSP_MINECRAFT_JAR = (Resolve-Path '.\game-server-platform\minecraft\1.20.4\server.jar').Path
@@ -72,11 +139,7 @@ go test ./internal/usecases -run '^TestMinecraftBackupIntegration$' -v -count=1 
 Remove-Item Env:GSP_MINECRAFT_JAR
 ```
 
-This requires Java 17+ and an existing `eula=true` beside the supplied 1.20.4
-jar. It creates a disposable world bound to localhost, changes its spawn,
-compares every copied file before restart, and checks status connections before
-and after restart. It never opens the existing world. Connecting a player from
-a second LAN device remains a separate manual check.
-
----
-Work in progress
+This optional test requires Java 17 or newer and an existing `eula=true` beside
+the supplied Minecraft 1.20.4 JAR. It creates and modifies only a disposable
+world, compares the snapshot contents, and checks server status before and
+after the backup restart. It never opens the existing world.

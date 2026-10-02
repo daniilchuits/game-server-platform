@@ -22,6 +22,27 @@ type BackupMetadata struct {
 	CreatedAt string `json:"created_at"`
 }
 
+type BackupData struct {
+	FileName string
+	Message  string
+}
+
+type RestorePlan struct {
+	ServerDirectory string
+	BackupName      string
+	BackupDirectory string
+	SourceWorld     string
+	TargetWorld     string
+	Version         string
+}
+
+type RestoreTransaction interface {
+	Commit() error
+	// Rollback reports whether the original world is installed again. Cleanup
+	// can fail after a successful rollback, so callers must inspect both values.
+	Rollback() (bool, error)
+}
+
 // OutputMatcher consumes one complete log line. It must not call process methods.
 type OutputMatcher func(string) (bool, error)
 

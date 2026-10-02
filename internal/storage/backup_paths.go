@@ -51,10 +51,14 @@ func validateWorld(ctx context.Context, root, world string) error {
 	if strings.EqualFold(first, "backups") {
 		return fmt.Errorf("world cannot be inside backups: %s", world)
 	}
-	if err := inspectDirectories(world); err != nil {
+	return validateTree(ctx, world)
+}
+
+func validateTree(ctx context.Context, root string) error {
+	if err := inspectDirectories(root); err != nil {
 		return err
 	}
-	return filepath.WalkDir(world, func(path string, entry os.DirEntry, walkErr error) error {
+	return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

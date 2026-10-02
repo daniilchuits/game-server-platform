@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"game-server-platform/internal/domain"
-	"game-server-platform/internal/storage"
 )
 
 type StartServer struct {
@@ -17,6 +16,8 @@ type StartServer struct {
 	ServerFiles   ServerFiles
 	Process       ProcessLauncher
 	Backups       BackupStore
+	BackupsReader BackupsReader
+	Restorer      BackupRestorer
 	Clock         Clock
 	BaseDirectory string
 }
@@ -75,7 +76,7 @@ func (app StartServer) Run(ctx context.Context) error {
 	app.Console.Message("Offline mode is enabled: reachable clients can join using arbitrary player names.")
 	app.Console.Message("LAN players can connect to this computer's local IP (default port 25565).")
 	app.Console.Message("Starting Minecraft " + version + ". Type stop and press Enter to save and shut down.")
-	if app.Process == nil || app.Backups == nil {
+	if app.Process == nil || app.Backups == nil || app.BackupsReader == nil || app.Restorer == nil {
 		return app.Java.Start(ctx, installation, directory)
 	}
 	process, err := app.Process.Launch(ctx, installation, directory)
@@ -90,7 +91,8 @@ func (app StartServer) Run(ctx context.Context) error {
 			Directory:     directory,
 			Version:       version,
 			Backups:       app.Backups,
+			Restorer:      app.Restorer,
 			Clock:         app.Clock,
-			BackupsReader: storage.BackupsReader{},
+			BackupsReader: app.BackupsReader,
 		}, process)
 }
