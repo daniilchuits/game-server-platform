@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#09110d">
+  <title>Game Server Platform</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to dashboard</a>
+
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Game Server Platform dashboard">
+      <span class="brand-mark" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </span>
+      <span>
+        <strong>Game Server Platform</strong>
+        <small>Local Minecraft control panel</small>
+      </span>
+    </a>
+
+    <div class="connection" id="connectionStatus" role="status" aria-live="polite">
+      <span class="connection-dot" aria-hidden="true"></span>
+      <span id="connectionText">Connecting</span>
+    </div>
+  </header>
+
+  <main class="dashboard" id="main-content">
+    <section class="card server-card" aria-labelledby="server-heading">
+      <div class="card-heading server-heading-row">
+        <div>
+          <p class="eyebrow">SERVER CONTROL</p>
+          <h1 id="server-heading">Minecraft server</h1>
+        </div>
+
+        <div class="status-pill" id="serverStatus" data-tone="loading" role="status" aria-live="polite">
+          <span aria-hidden="true"></span>
+          <span id="serverStatusText">Checking status</span>
+        </div>
+      </div>
+
+      <dl class="server-facts">
+        <div>
+          <dt>Version</dt>
+          <dd id="serverVersion">—</dd>
+        </div>
+        <div>
+          <dt>Current state</dt>
+          <dd id="serverState">Connecting</dd>
+        </div>
+        <div>
+          <dt>Access</dt>
+          <dd>Localhost only</dd>
+        </div>
+      </dl>
+
+      <div class="server-actions" aria-label="Server actions">
+        <button class="button button-primary" id="startButton" type="button" disabled>
+          <span class="button-icon" aria-hidden="true">▶</span>
+          Start server
+        </button>
+        <button class="button button-danger" id="stopButton" type="button" disabled>
+          <span class="button-icon" aria-hidden="true">■</span>
+          Stop server
+        </button>
+      </div>
+
+      <div class="inline-error" id="serverError" role="alert" hidden></div>
+
+      <section class="eula-panel" id="eulaPanel" role="alert" aria-labelledby="eula-heading" hidden>
+        <div class="eula-icon" aria-hidden="true">!</div>
+        <div>
+          <p class="eyebrow">ACTION REQUIRED</p>
+          <h2 id="eula-heading" tabindex="-1">Accept the Minecraft EULA</h2>
+          <p>
+            The server cannot start until you review and accept the
+            <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noopener noreferrer">official Minecraft EULA<span class="visually-hidden"> (opens in a new tab)</span></a>.
+          </p>
+          <p class="eula-path">EULA file: <code id="eulaPath">eula.txt</code></p>
+
+          <form id="eulaForm">
+            <label class="check-row">
+              <input id="eulaAccepted" type="checkbox">
+              <span>I have read and accept the Minecraft EULA.</span>
+            </label>
+            <button class="button button-warning" id="acceptEulaButton" type="submit" disabled>
+              Accept and continue
+            </button>
+          </form>
+        </div>
+      </section>
+    </section>
+
+    <section class="card console-card" aria-labelledby="console-heading">
+      <div class="card-heading console-heading-row">
+        <div>
+          <p class="eyebrow">LIVE OUTPUT</p>
+          <h2 id="console-heading">Server console</h2>
+        </div>
+
+        <div class="console-tools">
+          <label class="compact-check">
+            <input id="autoScroll" type="checkbox" checked>
+            <span>Auto-scroll</span>
+          </label>
+          <button class="text-button" id="clearLogsButton" type="button">Clear view</button>
+        </div>
+      </div>
+
+      <div class="console-output" id="logOutput" role="log" aria-live="polite" aria-relevant="additions" aria-label="Minecraft server logs">
+        <p class="console-empty" id="emptyLogs">Waiting for server output…</p>
+      </div>
+
+      <form class="command-form" id="commandForm">
+        <label class="visually-hidden" for="commandInput">Minecraft server command</label>
+        <span class="command-prompt" aria-hidden="true">›</span>
+        <input id="commandInput" name="command" type="text" autocomplete="off" spellcheck="false" placeholder="Enter a server command…" disabled>
+        <button class="button button-primary" id="sendCommandButton" type="submit" disabled>Send</button>
+      </form>
+      <p class="field-hint">Commands are sent directly to the local Minecraft process.</p>
+    </section>
+
+    <aside class="card backups-card" aria-labelledby="backups-heading">
+      <div class="card-heading backups-heading-row">
+        <div>
+          <p class="eyebrow">WORLD SAFETY</p>
+          <h2 id="backups-heading">Backups</h2>
+        </div>
+        <button class="icon-button" id="refreshBackupsButton" type="button" aria-label="Refresh backup list" title="Refresh backup list">
+          <span aria-hidden="true">↻</span>
+        </button>
+      </div>
+
+      <form class="backup-create" id="backupForm">
+        <label for="backupMessage">Create a snapshot</label>
+        <div class="stacked-field">
+          <input id="backupMessage" name="message" type="text" maxlength="160" placeholder="Optional note, e.g. Before the castle" disabled>
+          <button class="button button-secondary" id="createBackupButton" type="submit" disabled>Create backup</button>
+        </div>
+        <p class="field-hint">The server saves the world and restarts automatically.</p>
+      </form>
+
+      <div class="section-divider" aria-hidden="true"></div>
+
+      <div class="backup-list-heading">
+        <h3>Available snapshots</h3>
+        <span id="backupCount">—</span>
+      </div>
+
+      <p class="backup-loading" id="backupLoading" role="status">Loading backups…</p>
+      <ul class="backup-list" id="backupList" aria-label="Available world backups"></ul>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast" data-tone="info" role="status" aria-live="polite" aria-atomic="true" hidden>
+    <span class="toast-mark" aria-hidden="true"></span>
+    <span id="toastMessage"></span>
+    <button id="dismissToastButton" type="button" aria-label="Dismiss notification">×</button>
+  </div>
+
+  <footer class="site-footer">
+    <p>Runs locally on your computer. Nothing is exposed by this dashboard unless you change the server configuration.</p>
+  </footer>
+
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

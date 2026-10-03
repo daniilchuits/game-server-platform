@@ -46,6 +46,12 @@ type CommandConsole interface {
 	ReadCommand() (string, error)
 }
 
+// SessionObserver receives state changes from the session's owner goroutine.
+// Implementations should return promptly so command and process supervision can continue.
+type SessionObserver interface {
+	SessionStateChanged(domain.SessionState)
+}
+
 type BackupsReader interface {
 	ReadBackups(currDir string) ([]domain.BackupData, error)
 }

@@ -21,6 +21,7 @@ type Session struct {
 	Backups      BackupStore
 	Restorer     BackupRestorer
 	Clock        Clock
+	Observer     SessionObserver
 	// WaitTimeout is per operation. Zero uses the production five-minute limit.
 	WaitTimeout   time.Duration
 	progress      func(domain.SessionState)
@@ -71,7 +72,14 @@ func RunSession(ctx context.Context, session Session, process ServerProcess) err
 		}
 	}
 	operations := make(chan BackupResult, 1)
-	state := domain.Starting
+	var state domain.SessionState
+	transition := func(next domain.SessionState) {
+		state = next
+		if session.Observer != nil {
+			session.Observer.SessionStateChanged(next)
+		}
+	}
+	transition(domain.Starting)
 	busy := true
 	session.Console.Message("Waiting for Minecraft to become ready.")
 	go func(initial ServerProcess) {
@@ -116,7 +124,7 @@ func RunSession(ctx context.Context, session Session, process ServerProcess) err
 			}
 			if command.Kind == cli.BackupCommand {
 				busy = true
-				state = domain.Preparing
+				transition(domain.Preparing)
 				current := process
 				go func() { operations <- CreateBackup(ctx, session, current, command.Message) }()
 				continue
@@ -139,7 +147,7 @@ func RunSession(ctx context.Context, session Session, process ServerProcess) err
 				continue
 			} else if command.Kind == cli.UseBackupCommand {
 				busy = true
-				state = domain.PreparingRestore
+				transition(domain.PreparingRestore)
 				current := process
 				hash := command.Message
 				go func() { operations <- RestoreBackup(ctx, session, current, hash) }()
@@ -150,7 +158,7 @@ func RunSession(ctx context.Context, session Session, process ServerProcess) err
 				return errors.Join(err, shutdown(session, process))
 			}
 		case update := <-progress:
-			state = update
+			transition(update)
 			session.Console.Message("Server is " + string(state) + ".")
 		case <-processDone:
 			// The operation owns an expected exit during backup and its replacement.
@@ -187,7 +195,7 @@ func RunSession(ctx context.Context, session Session, process ServerProcess) err
 				return process.Wait()
 			default:
 			}
-			state = domain.Running
+			transition(domain.Running)
 			processDone = process.Done()
 			session.Console.Message("Server ready.")
 		}
