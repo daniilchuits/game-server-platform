@@ -19,6 +19,7 @@ type StartServer struct {
 	BackupsReader BackupsReader
 	Restorer      BackupRestorer
 	Clock         Clock
+	Observer      SessionObserver
 	BaseDirectory string
 }
 
@@ -93,6 +94,7 @@ func (app StartServer) Run(ctx context.Context) error {
 			Backups:       app.Backups,
 			Restorer:      app.Restorer,
 			Clock:         app.Clock,
+			Observer:      app.Observer,
 			BackupsReader: app.BackupsReader,
 		}, process)
 }

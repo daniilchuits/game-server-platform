@@ -1,13 +1,16 @@
 # Game Server Platform
 
-A Go CLI for setting up and running a local Minecraft server with safe world
-backup and restore operations.
+A Go application for setting up and running a local Minecraft server with safe
+world backup and restore operations. It includes a small browser control panel
+served locally by the Go application.
 
 The project is in early development and currently supports Minecraft 1.20.4.
 
 ## Features
 
 - Checks that Java is installed and reports the minimum required version.
+- Serves a responsive control panel on `127.0.0.1` without Node.js or external
+  frontend dependencies.
 - Downloads and verifies the Minecraft server JAR for the selected version.
 - Guides the user through Minecraft EULA acceptance.
 - Configures the server for offline/LAN play.
@@ -41,9 +44,16 @@ Start the application:
 go run .
 ```
 
-Press Enter at the version prompt to use the supported default, `1.20.4`. On
-the first run, the application asks you to accept the Minecraft EULA before it
-starts the server.
+Then open [http://127.0.0.1:8080](http://127.0.0.1:8080) and select **Start
+server**. The application supports Minecraft `1.20.4`; no version prompt is
+needed while only that version is supported. On the first run, review and
+accept the Minecraft EULA in the control panel before setup continues.
+
+The control panel binds only to the loopback address and rejects other host
+headers. It is not exposed to other computers on the LAN. Ctrl+C in the
+terminal stops the HTTP service and gracefully stops an active Minecraft
+process. The panel has no login and assumes other processes and user accounts
+on the same computer are trusted.
 
 ```txt
  [!WARNING]
@@ -52,7 +62,15 @@ starts the server.
  to the public internet.
 ```
 
-## Console commands
+## Control panel and console commands
+
+The page shows the current lifecycle state and live Minecraft output. It also
+provides controls for starting and stopping the server, sending a command,
+creating a backup, listing completed snapshots, and restoring a selected
+snapshot. The restore form requires the snapshot hash to be pasted back as a
+confirmation.
+
+The command field supports the same application commands:
 
 | Command | Description |
 | --- | --- |
@@ -125,7 +143,8 @@ go test ./...
 go vet ./...
 ```
 
-The standard suite covers Java detection, command routing, save
+The standard suite covers Java detection, browser-controller and HTTP API
+behavior, command routing, save
 acknowledgements, process ownership, cancellation, backup creation, safe
 restore transactions, rollback failures, path traversal, symbolic links, and
 Windows junctions. It uses temporary directories and helper processes, so it
